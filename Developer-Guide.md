@@ -1,3 +1,5 @@
+# Developer Guide
+
 * [Warning](#warning)
 * [Assumptions](#assumptions)
 * [Initial setup](#initial-setup)
@@ -12,10 +14,10 @@
         * [journald rate limiting](#journald-rate-limiting)
             * [`systemd-journald` suppressing messages](#systemd-journald-suppressing-messages)
             * [Disabling `systemd-journald` rate limiting](#disabling-systemd-journald-rate-limiting)
-* [Build and install Kata proxy](#build-and-install-kata-proxy)
-* [Build and install Kata shim](#build-and-install-kata-shim)
+* [Build and install Kata Containers proxy](#build-and-install-kata-containers-proxy)
+* [Build and install Kata Containers shim](#build-and-install-kata-containers-shim)
 * [Create and install rootfs and initrd image](#create-and-install-rootfs-and-initrd-image)
-    * [Build a custom Kata agent - OPTIONAL](#build-a-custom-kata-agent---optional)
+    * [Build a custom Kata Containers agent - OPTIONAL](#build-a-custom-kata-containers-agent---optional)
     * [Get the osbuilder](#get-the-osbuilder)
     * [Create a rootfs image](#create-a-rootfs-image)
         * [Create a local rootfs](#create-a-local-rootfs)
@@ -32,7 +34,7 @@
         * [Build a custom QEMU for aarch64/arm64 - REQUIRED](#build-a-custom-qemu-for-aarch64arm64---required)
 * [Run Kata Containers with Docker](#run-kata-containers-with-docker)
     * [Update the Docker systemd unit file](#update-the-docker-systemd-unit-file)
-    * [Create a container using Kata](#create-a-container-using-kata)
+    * [Create a container using Kata Containers](#create-a-container-using-kata-containers)
 * [Run Kata Containers with Kubernetes](#run-kata-containers-with-kubernetes)
 * [Troubleshoot Kata Containers](#troubleshoot-kata-containers)
 * [Appendices](#appendices)
@@ -53,7 +55,8 @@
 
 # Warning
 
-This document is written **specifically for developers**: it is not intended for end users.
+This document is written **specifically for developers**: it is not intended
+for end users.
 
 # Assumptions
 
@@ -62,11 +65,11 @@ This document is written **specifically for developers**: it is not intended for
 # Initial setup
 
 The recommended way to create a development environment is to first
-[install the packaged versions of the Kata Containers components](install/README.md)
-to create a working system.
+[install the packaged versions of the Kata Containers components] 
+(install/README.md) to create a working system.
 
-The installation guide instructions will install all required Kata Containers
-components, plus Docker*, the hypervisor, and the Kata Containers image and
+The installation guide instructions installs all required Kata Containers
+components, Docker, the hypervisor, and the Kata Containers image and
 guest kernel.
 
 # Requirements to build individual components
@@ -76,7 +79,8 @@ You need to install the following to build Kata Containers components:
 - [golang](https://golang.org/dl)
 
   To view the versions of go known to work, see the `golang` entry in the
-  [versions database](https://github.com/kata-containers/runtime/blob/master/versions.yaml).
+  [versions database]
+  (https://github.com/kata-containers/runtime/blob/master/versions.yaml).
 
 - `make`.
 - `gcc` (required for building the shim and runtime).
@@ -89,49 +93,59 @@ $ cd $GOPATH/src/github.com/kata-containers/runtime
 $ make && sudo -E PATH=$PATH make install
 ```
 
-The build will create the following:
+The build creates the following:
 
 - runtime binary: `/usr/local/bin/kata-runtime`
 - configuration file: `/usr/share/defaults/kata-containers/configuration.toml`
 
 # Check hardware requirements
 
-You can check if your system is capable of creating a Kata Container by running the following:
+You can check if your system is capable of creating a Kata Containers
+container by running the following command:
 
 ```
 $ sudo kata-runtime kata-check
 ```
 
-If your system is *not* able to run Kata Containers, the previous command will error out and explain why.
+If your system is *not* able to run Kata Containers, the previous command
+will error out and explain why.
 
 ## Configure to use initrd or rootfs image
 
-Kata containers can run with either an initrd image or a rootfs image.
+Kata Containers can run with either an initrd image or a rootfs image.
 
-If you want to test with `initrd`, make sure you have `initrd = /usr/share/kata-containers/kata-containers-initrd.img`
-in your configuration file, commenting out the `image` line:
+If you want to test with `initrd`, make sure you have
+`initrd = /usr/share/kata-containers/kata-containers-initrd.img`
+in your configuration file, with the `image` line commented out:
 
-`/usr/share/defaults/kata-containers/configuration.toml` and comment out the `image` line with the following. For example:
+Also, comment out the `image` line in
+`/usr/share/defaults/kata-containers/configuration.toml` as shown in the
+following example:
 
 ```
 $ sudo mkdir -p /etc/kata-containers/
 $ sudo install -o root -g root -m 0640 /usr/share/defaults/kata-containers/configuration.toml /etc/kata-containers
 $ sudo sed -i 's/^\(image =.*\)/# \1/g' /etc/kata-containers/configuration.toml
 ```
-You can create the initrd image as shown in the [create an initrd image](#create-an-initrd-image---optional) section.
+You can create the initrd image as shown in the
+[create an initrd image](#create-an-initrd-image---optional) section.
 
-If you want to test with a rootfs `image`, make sure you have `image = /usr/share/kata-containers/kata-containers.img`
-in your configuration file, commenting out the `initrd` line. For example:
+If you want to test with a rootfs `image`, make sure you have
+`image = /usr/share/kata-containers/kata-containers.img`
+in your configuration file, and comment out the `initrd` line, as shown
+in the following example:
 
 ```
 $ sudo mkdir -p /etc/kata-containers/
 $ sudo install -o root -g root -m 0640 /usr/share/defaults/kata-containers/configuration.toml /etc/kata-containers
 $ sudo sed -i 's/^\(initrd =.*\)/# \1/g' /etc/kata-containers/configuration.toml
 ```
-The rootfs image is created as shown in the [create a rootfs image](#create-a-rootfs-image) section.
+The rootfs image is created as shown in the
+[create a rootfs image](#create-a-rootfs-image) section.
 
-One of the `initrd` and `image` options in Kata runtime config file **MUST** be set but **not both**.
-The main difference between the options is that the size of `initrd`(10MB+) is significantly smaller than
+One of the `initrd` and `image` options in the Kata Containers runtime
+config file **MUST** be set but **not both**. The main difference between
+the options is that the size of `initrd`(10MB+) is significantly smaller than
 rootfs `image`(100MB+).
 
 ## Enable full debug
@@ -147,19 +161,22 @@ $ sudo sed -i -e 's/^kernel_params = "\(.*\)"/kernel_params = "\1 agent.log=debu
 
 ### debug logs and shimv2
 
-If you are using `containerd` and the Kata `containerd-shimv2` to launch Kata Containers, and wish
-to enable Kata debug logging, there are two ways this can be enabled via the `containerd` configuration file,
-detailed below.
+If you are using `containerd` and the Kata Containers `containerd-shimv2` to
+launch Kata Containers, and wish to enable Kata Containers debug logging,
+there are two ways this can be enabled via the `containerd` configuration
+file, detailed below.
 
-The Kata logs appear in the `containerd` log files, along with logs from `containerd` itself.
+The Kata Containers logs appear in the `containerd` log files, along with
+logs from `containerd` itself.
 
 For more information about `containerd` debug, please see the
 [`containerd` documentation](https://github.com/containerd/containerd/blob/master/docs/getting-started.md).
 
 #### Enabling full `containerd` debug
 
-Enabling full `containerd` debug also enables the shimv2 debug. Edit the `containerd` configuration file
-to include the top level debug option such as:
+Enabling full `containerd` debug also enables the shimv2 debug. Edit the
+`containerd` configuration file to include the top level debug option such
+as:
 
 ```toml
 [debug]
@@ -168,8 +185,9 @@ to include the top level debug option such as:
 
 #### Enabling just `containerd shim` debug
 
-If you only wish to enable debug for the `containerd` shims themselves, just enable the debug
-option in the `plugins.linux` section of the `containerd` configuration file, such as:
+If you only want to enable debug for the `containerd` shims themselves, just
+enable the debug option in the `plugins.linux` section of the `containerd`
+configuration file, as shown below:
 
 ```toml
   [plugins.linux]
@@ -178,39 +196,45 @@ option in the `plugins.linux` section of the `containerd` configuration file, su
 
 ### journald rate limiting
 
-Enabling [full debug](#enable-full-debug) results in the Kata components generating
-large amounts of logging, which by default is stored in the system log. Depending on
-your system configuration, it is possible that some events might be discarded by the
-system logging daemon. The following shows how to determine this for `systemd-journald`,
+Enabling [full debug](#enable-full-debug) results in the Kata Containers
+components generating large amounts of logging, which by default is stored
+in the system log. Depending on your system configuration, it is possible
+that some events might be discarded by the system logging daemon. The
+following example shows how to determine this for `systemd-journald`,
 and offers possible workarounds and fixes.
 
-> **Note** The method of implementation can vary between Operating System installations.
+> **Note** The method of implementation can vary between Operating System
+> installations.
 > Amend these instructions as necessary to your system implementation,
-> and consult with your system administrator for the appropriate configuration.
+> and consult with your system administrator for the appropriate
+> configuration.
 
 #### `systemd-journald` suppressing messages
 
-`systemd-journald` can be configured to rate limit the number of journal entries
-it stores. When messages are suppressed, it is noted in the logs. This can be checked
-for by looking for those notifications, such as:
+`systemd-journald` can be configured to rate-limit the number of journal
+entries it stores. When messages are suppressed, it is noted in the logs.
+Check for suppressed messages by looking for those notifications, as shown
+below:
 
 ```sh
 $ sudo journalctl --since today | fgrep Suppressed
 Jun 29 14:51:17 mymachine systemd-journald[346]: Suppressed 4150 messages from /system.slice/docker.service
 ```
 
-This message indicates that a number of log messages from the `docker.service` slice were
-suppressed. In such a case, you can expect to have incomplete logging information
-stored from the Kata Containers components.
+This message indicates that 4,150 log messages from the
+`docker.service` slice were suppressed. In such a case, you can expect to
+have incomplete logging information stored from the Kata Containers
+components.
 
 #### Disabling `systemd-journald` rate limiting
 
-In order to capture complete logs from the Kata Containers components, you
+To capture complete logs from the Kata Containers components, you
 need to reduce or disable the `systemd-journald` rate limit. Configure
-this at the global `systemd-journald` level, and it will apply to all system slices.
+this at the global `systemd-journald` level, and it applies to all system
+slices.
 
-To disable `systemd-journald` rate limiting at the global level, edit the file
-`/etc/systemd/journald.conf`, and add/uncomment the following lines:
+To disable `systemd-journald` rate limiting at the global level, edit the
+file `/etc/systemd/journald.conf`, and add/uncomment the following lines:
 
 ```
 RateLimitInterval=0s
@@ -223,14 +247,14 @@ Restart `systemd-journald` for the changes to take effect:
 $ sudo systemctl restart systemd-journald
 ```
 
-# Build and install Kata proxy
+# Build and install Kata Containers proxy
 
 ```
 $ go get -d -u github.com/kata-containers/proxy
 $ cd $GOPATH/src/github.com/kata-containers/proxy && make && sudo make install
 ```
 
-# Build and install Kata shim
+# Build and install Kata Containers shim
 
 ```
 $ go get -d -u github.com/kata-containers/shim
@@ -239,11 +263,12 @@ $ cd $GOPATH/src/github.com/kata-containers/shim && make && sudo make install
 
 # Create and install rootfs and initrd image
 
-## Build a custom Kata agent - OPTIONAL
+## Build a custom Kata Containers agent - OPTIONAL
 
 > **Note:**
 >
-> - You should only do this step if you are testing with the latest version of the agent.
+> - You should only do this step if you are testing with the latest version
+> of the agent.
 
 ```
 $ go get -d -u github.com/kata-containers/agent
@@ -269,20 +294,26 @@ $ sudo rm -rf ${ROOTFS_DIR}
 $ cd $GOPATH/src/github.com/kata-containers/osbuilder/rootfs-builder
 $ script -fec 'sudo -E GOPATH=$GOPATH USE_DOCKER=true SECCOMP=no ./rootfs.sh ${distro}'
 ```
-You MUST choose one of `alpine`, `centos`, `clearlinux`, `debian`, `euleros`, `fedora`, `suse`, and `ubuntu` for `${distro}`. By default `seccomp` packages are not included in the rootfs image. Set `SECCOMP` to `yes` to include them.
+You MUST choose one of `alpine`, `centos`, `clearlinux`, `debian`,
+`euleros`, `fedora`, `suse`, or `ubuntu` for `${distro}`. By default
+`seccomp` packages are not included in the rootfs image. Set `SECCOMP` to
+`yes` to include them.
 
 > **Note:**
 >
-> - Check the [compatibility matrix](https://github.com/kata-containers/osbuilder#platform-distro-compatibility-matrix) before creating rootfs.
-> - You must ensure that the *default Docker runtime* is `runc` to make use of
->   the `USE_DOCKER` variable. If that is not the case, remove the variable
->   from the previous command. See [Checking Docker default runtime](#checking-docker-default-runtime).
+> - Check the [compatibility matrix]
+> (https://github.com/kata-containers/osbuilder#platform-distro-compatibility-matrix) before creating rootfs.
+> - You must ensure that the *default Docker runtime* is `runc` to make use
+> of the `USE_DOCKER` variable. If that is not the case, remove the variable
+> from the previous command.
+> See [Checking Docker default runtime](#checking-docker-default-runtime).
 
 ### Add a custom agent to the image - OPTIONAL
 
 > **Note:**
 >
-> - You should only do this step if you are testing with the latest version of the agent.
+> - You should only do this step if you are testing with the latest version
+> of the agent.
 
 ```
 $ sudo install -o root -g root -m 0550 -t ${ROOTFS_DIR}/bin ../../agent/kata-agent
@@ -299,12 +330,13 @@ $ script -fec 'sudo -E USE_DOCKER=true ./image_builder.sh ${ROOTFS_DIR}'
 
 > **Notes:**
 >
-> - You must ensure that the *default Docker runtime* is `runc` to make use of
->   the `USE_DOCKER` variable. If that is not the case, remove the variable
->   from the previous command. See [Checking Docker default runtime](#checking-docker-default-runtime).
+> - You must ensure that the *default Docker runtime* is `runc` to make use
+> of the `USE_DOCKER` variable. If that is not the case, remove the variable
+> from the previous command. See [Checking Docker default runtime]
+> (#checking-docker-default-runtime).
 > - If you do *not* wish to build under Docker, remove the `USE_DOCKER`
->   variable in the previous command and ensure the `qemu-img` command is
->   available on your system.
+> variable in the previous command and ensure the `qemu-img` command is
+> available on your system.
 
 
 ### Install the rootfs image
@@ -325,16 +357,21 @@ $ sudo rm -rf ${ROOTFS_DIR}
 $ cd $GOPATH/src/github.com/kata-containers/osbuilder/rootfs-builder
 $ script -fec 'sudo -E GOPATH=$GOPATH AGENT_INIT=yes USE_DOCKER=true SECCOMP=no ./rootfs.sh ${distro}'
 ```
-`AGENT_INIT` controls if the guest image uses the Kata agent as the guest `init` process. When you create an initrd image,
-always set `AGENT_INIT` to `yes`. By default `seccomp` packages are not included in the initrd image. Set `SECCOMP` to `yes` to include them.
+`AGENT_INIT` controls whether the guest image uses the Kata Containers agent
+as the guest `init` process. When you create an initrd image, always set
+`AGENT_INIT` to `yes`. By default `seccomp` packages are not included in the
+initrd image. Set `SECCOMP` to `yes` to include them.
 
-You MUST choose one of `alpine`, `centos`, `clearlinux`, `euleros`, and `fedora` for `${distro}`.
+You MUST choose one of `alpine`, `centos`, `clearlinux`, `euleros`, or
+`fedora` for `${distro}`.
 
 > **Note:**
 >
-> - Check the [compatibility matrix](https://github.com/kata-containers/osbuilder#platform-distro-compatibility-matrix) before creating rootfs.
+> - Check the [compatibility matrix]
+> (https://github.com/kata-containers/osbuilder#platform-distro-compatibility-matrix) before creating rootfs.
 
-Optionally, add your custom agent binary to the rootfs with the following:
+Optionally, add your custom agent binary to the rootfs with the following
+command:
 ```
 $ sudo install -o root -g root -m 0550 -T ../../agent/kata-agent ${ROOTFS_DIR}/sbin/init
 ```
@@ -358,15 +395,22 @@ $ (cd /usr/share/kata-containers && sudo ln -sf "$image" kata-containers-initrd.
 
 # Install guest kernel images
 
-You can build and install the guest kernel image as shown [here](https://github.com/kata-containers/packaging/tree/master/kernel#build-kata-containers-kernel).
+You can build and install the guest kernel image as shown
+[here](https://github.com/kata-containers/packaging/tree/master/kernel#build-kata-containers-kernel).
 
 # Install a hypervisor
 
-When setting up Kata using a [packaged installation method](https://github.com/kata-containers/documentation/tree/master/install#installing-on-a-linux-system), the `qemu-lite` hypervisor is installed automatically. For other installation methods, you will need to manually install a suitable hypervisor.
+When setting up Kata Containers using a [packaged installation method]
+(https://github.com/kata-containers/documentation/tree/master/install#installing-on-a-linux-system),
+the `qemu-lite` hypervisor is installed automatically. For other
+installation methods, you need to manually install a suitable hypervisor.
 
 ## Build a custom QEMU
 
-Your QEMU directory need to be prepared with source code. Alternatively, you can use the [Kata containers QEMU](https://github.com/kata-containers/qemu/tree/master) and checkout the recommended branch:
+Your QEMU directory needs to be prepared with source code. Alternatively, you
+can use the
+[Kata Containers QEMU](https://github.com/kata-containers/qemu/tree/master)
+and checkout the recommended branch:
 
 ```
 $ go get -d github.com/kata-containers/qemu
@@ -376,7 +420,8 @@ $ git checkout -b $qemu_branch remotes/origin/$qemu_branch
 $ your_qemu_directory=${GOPATH}/src/github.com/kata-containers/qemu
 ```
 
-To build a version of QEMU using the same options as the default `qemu-lite` version , you could use the `configure-hypervisor.sh` script:
+To build a version of QEMU using the same options as the default `qemu-lite`
+version , you could use the `configure-hypervisor.sh` script:
 
 ```
 $ go get -d github.com/kata-containers/packaging
@@ -391,10 +436,12 @@ $ sudo -E make install
 > **Note:**
 >
 > - You should only do this step if you are on aarch64/arm64.
-> - You should include [Eric Auger's latest PCDIMM/NVDIMM patches](https://patchwork.kernel.org/cover/10647305/) which are
->   under upstream review for supporting NVDIMM on aarch64.
->
-You could build the custom `qemu-system-aarch64` as required with the following command:
+> - You should include [Eric Auger's latest PCDIMM/NVDIMM patches]
+> (https://patchwork.kernel.org/cover/10647305/) which are
+> under upstream review for supporting NVDIMM on aarch64.
+
+You could build the custom `qemu-system-aarch64` as required with the
+following command:
 ```
 $ go get -d github.com/kata-containers/tests
 $ script -fec 'sudo -E ${GOPATH}/src/github.com/kata-containers/tests/.ci/install_qemu.sh'
@@ -413,22 +460,24 @@ $ sudo systemctl daemon-reload
 $ sudo systemctl restart docker
 ```
 
-## Create a container using Kata
+## Create a container using Kata Containers
 
 ```
 $ sudo docker run -ti --runtime kata-runtime busybox sh
 ```
 
 # Run Kata Containers with Kubernetes
-Refer to to the [Run Kata Containers with Kubernetes](how-to/run-kata-with-k8s.md) how-to guide.
+Refer to to the
+[Run Kata Containers with Kubernetes](how-to/run-kata-with-k8s.md)
+how-to guide.
 
 # Troubleshoot Kata Containers
 
-If you are unable to create a Kata Container first ensure you have
-[enabled full debug](#enable-full-debug)
-before attempting to create a container. Then run the
-[`kata-collect-data.sh`](https://github.com/kata-containers/runtime/blob/master/data/kata-collect-data.sh.in)
-script and paste its output directly into a
+If you are unable to create a Kata Containers container, first ensure you
+have [enabled full debug](#enable-full-debug) before attempting to create a
+container. Then run the
+[`kata-collect-data.sh`](https://github.com/kata-containers/runtime/blob/master/data/kata-collect-data.sh.in) script and
+paste its output directly into a
 [GitHub issue](https://github.com/kata-containers/kata-containers/issues/new).
 
 > **Note:**
@@ -436,16 +485,18 @@ script and paste its output directly into a
 > The `kata-collect-data.sh` script is built from the
 > [runtime](https://github.com/kata-containers/runtime) repository.
 
-To perform analysis on Kata logs, use the
-[`kata-log-parser`](https://github.com/kata-containers/tests/tree/master/cmd/log-parser)
-tool, which can convert the logs into formats (e.g. JSON, TOML, XML, and YAML).
+To perform an analysis on Kata Containers logs, use the
+[`kata-log-parser`]
+(https://github.com/kata-containers/tests/tree/master/cmd/log-parser)
+tool, which can convert the logs into formats (e.g. JSON, TOML, XML, and
+YAML).
 
 To obtain a full backtrace for the agent, proxy, runtime, or shim send the
-`SIGUSR1` signal to the process ID of the component. The component will send a
-backtrace to the system log on the host system and continue to run without
+`SIGUSR1` signal to the process ID of the component. The component will send
+a backtrace to the system log on the host system and continue to run without
 interruption.
 
-For example, to obtain a backtrace for `kata-proxy`:
+For example, to obtain a backtrace for `kata-proxy`, do the following:
 
 ```
 $ sudo kill -USR1 $kata_proxy_pid
@@ -469,30 +520,38 @@ from a security perspective. Also, allowing logins would require additional
 packages in the rootfs, which would increase the size of the image used to
 boot the virtual machine.
 
-If you want to login to a virtual machine that hosts your containers, complete
-the following steps (using rootfs or initrd image).
+If you want to login to a virtual machine that hosts your containers,
+complete the following steps (using rootfs or initrd image).
 
-> **Note:** The following debug console instructions assume a systemd-based guest
-> O/S image. This means you must create a rootfs for a distro that supports systemd.
-> Currently, all distros supported by [osbuilder](https://github.com/kata-containers/osbuilder) support systemd
+> **Note:** The following debug console instructions assume a systemd-based
+> guest O/S image. This means you must create a rootfs for a distro that
+> supports systemd.
+> Currently, all distros supported by
+> [osbuilder](https://github.com/kata-containers/osbuilder) support systemd
 > except for Alpine Linux.
 >
-> Look for `INIT_PROCESS=systemd` in the `config.sh` osbuilder rootfs config file
-> to verify an osbuilder distro supports systemd for the distro you want to build rootfs for.
-> For an example, see the [Clear Linux config.sh file](https://github.com/kata-containers/osbuilder/blob/master/rootfs-builder/clearlinux/config.sh).
+> Look for `INIT_PROCESS=systemd` in the `config.sh` osbuilder rootfs config
+> file to verify an osbuilder distro supports systemd for the distro you
+> want to build rootfs for.
+> For an example, see the [Clear Linux config.sh file]
+> (https://github.com/kata-containers/osbuilder/blob/master/rootfs-builder/clearlinux/config.sh).
 >
 > For a non-systemd-based distro, create an equivalent system
-> service using that distro’s init system syntax. Alternatively, you can build a distro
-> that contains a shell (e.g. `bash(1)`). In this circumstance it is likely you need to install
-> additional packages in the rootfs and add “agent.debug_console” to kernel parameters in the runtime
-> config file. This tells the Kata agent to launch the console directly.
+> service using that distro’s init system syntax. Alternatively, you can
+> build a distro that contains a shell (e.g. `bash(1)`). In this
+> circumstance it is likely you need to install
+> additional packages in the rootfs and add “agent.debug_console” to kernel
+> parameters in the runtime config file. This tells the Kata Containers
+> agent to launch the console directly.
 >
-> Once these steps are taken you can connect to the virtual machine using the [debug console](https://github.com/kata-containers/documentation/blob/master/Developer-Guide.md#connect-to-the-virtual-machine-using-the-debug-console).
+> Once these steps are taken you can connect to the virtual machine using
+> the [debug console](https://github.com/kata-containers/documentation/blob/master/Developer-Guide.md#connect-to-the-virtual-machine-using-the-debug-console).
 
 ### Create a custom image containing a shell
 
 To login to a virtual machine, you must
-[create a custom rootfs](#create-a-rootfs-image) or [custom initrd](#create-an-initrd-image---optional)
+[create a custom rootfs](#create-a-rootfs-image) or
+[custom initrd](#create-an-initrd-image---optional)
 containing a shell such as `bash(1)`. For Clear Linux, you will need
 an additional `coreutils` package.
 
@@ -535,15 +594,18 @@ $ sudo sed -i '$a Requires=kata-debug.service' ${ROOTFS_DIR}/lib/systemd/system/
 
 ### Build the debug image
 
-Follow the instructions in the [Build a rootfs image](#build-a-rootfs-image)
-section when using rootfs, or when using initrd, complete the steps in the [Build an initrd image](#build-an-initrd-image) section.
+If you are using rootfs, follow the instructions in the
+[Build a rootfs image](#build-a-rootfs-image) section. If you are using
+initrd, follow the instructions in the
+[Build an initrd image](#build-an-initrd-image) section.
 
 ### Configure runtime for custom debug image
 
 Install the image:
 
->**Note**: When using an initrd image, replace the below rootfs image name `kata-containers.img` 
->with the initrd image name `kata-containers-initrd.img`.
+>**Note**: When using an initrd image, replace the rootfs image name shown
+>in the example below, `kata-containers.img` with the initrd image name
+>`kata-containers-initrd.img`.
 
 ```
 $ name="kata-containers-centos-with-debug-console.img"
@@ -551,7 +613,8 @@ $ sudo install -o root -g root -m 0640 kata-containers.img "/usr/share/kata-cont
 ```
 
 Next, modify the `image=` values in the `[hypervisor.qemu]` section of the
-[configuration file](https://github.com/kata-containers/runtime#configuration)
+[configuration file]
+(https://github.com/kata-containers/runtime#configuration)
 to specify the full path to the image name specified in the previous code
 section. Alternatively, recreate the symbolic link so it points to
 the new debug image:
@@ -560,8 +623,8 @@ the new debug image:
 $ (cd /usr/share/kata-containers && sudo ln -sf "$name" kata-containers.img)
 ```
 
-**Note**: You should take care to undo this change after you finish debugging
-to avoid all subsequently created containers from using the debug image.
+**Note**: Undo this change after you finish debugging to avoid all
+subsequently-created containers from using the debug image.
 
 ### Ensure debug options are valid
 
@@ -578,7 +641,7 @@ $ sudo install -o root -g root -m 0640 /tmp/configuration.toml /etc/kata-contain
 
 ### Create a container
 
-Create a container as normal. For example using Docker:
+Create a container as normal. Here's an example using Docker:
 
 ```
 $ sudo docker run -ti busybox sh
@@ -609,28 +672,33 @@ $ cat /var/lib/osbuilder/osbuilder.yaml
 
 ## Capturing kernel boot logs
 
-Sometimes it is useful to capture the kernel boot messages from a Kata Container
-launch. If the container launches to the point whereby you can `exec` into it, and
-if the container has the necessary components installed, often you can execute the `dmesg`
+Sometimes it is useful to capture the kernel boot messages from a Kata
+Container launch. If the container launches to the point whereby you can
+`exec` into it, and if the container has the necessary components installed,
+often you can execute the `dmesg`
 command inside the container to view the kernel boot logs.
 
-If however you are unable to `exec` into the container, you can enable some debug
-options to have the kernel boot messages logged into the system journal.
+If however you are unable to `exec` into the container, you can enable some
+debug options to have the kernel boot messages logged into the system
+journal.
 
-Which debug options you enable depends on if you are using the hypervisor `vsock` mode
-or not, as defined by the `use_vsock` setting in the `[hypervisor.qemu]` section of
-the configuration file. The following details the settings:
+Which debug options you enable depends on whether you are using the
+hypervisor `vsock` mode or not, as defined by the `use_vsock` setting in the
+`[hypervisor.qemu]` section of the configuration file. Here's an explanation
+of the settings:
 
 - For `use_vsock = false`:
-    - Set `enable_debug = true` in both the `[hypervisor.qemu]` and `[proxy.kata]` sections
+    - Set `enable_debug = true` in both the `[hypervisor.qemu]` and
+    `[proxy.kata]` sections
 - For `use_vsock = true`:
-    - Set `enable_debug = true` in both the `[hypervisor.qemu]` and `[shim.kata]` sections
+    - Set `enable_debug = true` in both the `[hypervisor.qemu]` and
+    `[shim.kata]` sections
 
 For generic information on enabling debug in the configuration file, see the
 [Enable full debug](#enable-full-debug) section.
 
-The kernel boot messages will appear in the `kata-proxy` or `kata-shim` log appropriately,
-such as:
+The kernel boot messages appear in the `kata-proxy` or `kata-shim` log
+appropriately, as shown in the example below:
 
 ```bash
 $ sudo journalctl -t kata-proxy
@@ -649,9 +717,9 @@ mostly useful for testing and debugging purposes.
 
 ### Create an OCI bundle
 
-To build an
-[OCI bundle](https://github.com/opencontainers/runtime-spec/blob/master/bundle.md),
-required by the runtime:
+To build an [OCI bundle]
+(https://github.com/opencontainers/runtime-spec/blob/master/bundle.md),
+required by the runtime, do the following:
 
 ```
 $ bundle="/tmp/bundle"
